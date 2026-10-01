@@ -79,4 +79,4 @@ No external libraries are required.
 Clone the repository:
 
 ```bash
-git clone https://github.com/Tjordanart/orbit-sim.git
+git clone https://github.com/Tjordanart/orbitsim.git

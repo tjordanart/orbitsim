@@ -32,6 +32,7 @@
         width: 100%;
         height: 100%;
         cursor: default;
+        touch-action: none;
     }
 
     .info-panel {
@@ -72,6 +73,21 @@
 
     #resetButton:hover {
         background: #333;
+    }
+
+    @media (max-width: 600px) {
+        .info-panel {
+            top: 12px;
+            left: 12px;
+        }
+
+        h1 {
+            font-size: 20px;
+        }
+
+        p {
+            font-size: 12px;
+        }
     }
 </style>
 </head>
@@ -120,6 +136,12 @@ const ESCAPE_DISTANCE = 600;
 const MAX_TRAJECTORY_POINTS = 500;
 
 const START_VELOCITY = 5.0;
+
+
+// Controls how quickly the simulation moves.
+// 1.0 = original speed
+// 0.4 = slower, easier-to-watch motion
+const SIMULATION_SPEED = 0.4;
 
 
 // --------------------------------
@@ -183,7 +205,7 @@ function resizeCanvas() {
 
 
 // --------------------------------
-// Reset
+// Reset simulation
 // --------------------------------
 
 function resetSimulation() {
@@ -215,7 +237,7 @@ function resetSimulation() {
 
 
 // --------------------------------
-// Mouse position
+// Get mouse position
 // --------------------------------
 
 function getMousePosition(event) {
@@ -230,7 +252,7 @@ function getMousePosition(event) {
 
 
 // --------------------------------
-// Mouse down
+// Mouse / touch press
 // --------------------------------
 
 canvas.addEventListener("pointerdown", function(event) {
@@ -241,9 +263,9 @@ canvas.addEventListener("pointerdown", function(event) {
 
     const mouse = getMousePosition(event);
 
-    const dx = mouse.x - spacecraftX;
+    const dx = mouse.x - (spacecraftX + 10);
 
-    const dy = mouse.y - spacecraftY;
+    const dy = mouse.y - (spacecraftY + 10);
 
     const distance = Math.sqrt(
         dx * dx +
@@ -254,29 +276,25 @@ canvas.addEventListener("pointerdown", function(event) {
 
         dragging = true;
 
-        launchStartX = spacecraftX;
-
-        launchStartY = spacecraftY;
+        launchStartX = spacecraftX + 10;
+        launchStartY = spacecraftY + 10;
 
         mouseX = mouse.x;
-
         mouseY = mouse.y;
 
         velocityX = 0;
-
         velocityY = 0;
 
         canvas.setPointerCapture(event.pointerId);
 
         updateInterface();
-
     }
 
 });
 
 
 // --------------------------------
-// Mouse move
+// Mouse / touch movement
 // --------------------------------
 
 canvas.addEventListener("pointermove", function(event) {
@@ -288,14 +306,13 @@ canvas.addEventListener("pointermove", function(event) {
     const mouse = getMousePosition(event);
 
     mouseX = mouse.x;
-
     mouseY = mouse.y;
 
 });
 
 
 // --------------------------------
-// Mouse release
+// Mouse / touch release
 // --------------------------------
 
 canvas.addEventListener("pointerup", function(event) {
@@ -307,9 +324,9 @@ canvas.addEventListener("pointerup", function(event) {
     const mouse = getMousePosition(event);
 
     mouseX = mouse.x;
-
     mouseY = mouse.y;
 
+    // Launch opposite the drag direction
     velocityX =
         (launchStartX - mouseX) * 0.08;
 
@@ -346,10 +363,10 @@ function updateSimulation() {
     }
 
     const dx =
-        planetX - spacecraftX;
+        planetX - spacecraftX - 10;
 
     const dy =
-        planetY - spacecraftY;
+        planetY - spacecraftY - 10;
 
     const distance =
         Math.sqrt(
@@ -365,7 +382,6 @@ function updateSimulation() {
         crashed = true;
 
         velocityX = 0;
-
         velocityY = 0;
 
         updateInterface();
@@ -386,14 +402,14 @@ function updateSimulation() {
     }
 
 
-    // Gravity
+    // Calculate gravity
 
     const gravity =
         GRAVITY_CONSTANT /
         (distance * distance);
 
 
-    // Gravitational acceleration
+    // Calculate gravitational acceleration
 
     const accelerationX =
         gravity * dx / distance;
@@ -402,23 +418,31 @@ function updateSimulation() {
         gravity * dy / distance;
 
 
-    // Update velocity
+    // Apply gravity using the slower simulation speed
 
     velocityX +=
-        accelerationX * 0.016;
+        accelerationX *
+        0.016 *
+        SIMULATION_SPEED;
 
     velocityY +=
-        accelerationY * 0.016;
+        accelerationY *
+        0.016 *
+        SIMULATION_SPEED;
 
 
-    // Update position
+    // Move spacecraft using the same slowdown factor
 
-    spacecraftX += velocityX;
+    spacecraftX +=
+        velocityX *
+        SIMULATION_SPEED;
 
-    spacecraftY += velocityY;
+    spacecraftY +=
+        velocityY *
+        SIMULATION_SPEED;
 
 
-    // Store trajectory
+    // Store trajectory point
 
     trajectory.push({
         x: spacecraftX,
@@ -426,7 +450,7 @@ function updateSimulation() {
     });
 
 
-    // Limit trajectory
+    // Limit trajectory size
 
     if (
         trajectory.length >
@@ -447,7 +471,6 @@ function updateSimulation() {
 function drawSimulation() {
 
     const width = canvas.clientWidth;
-
     const height = canvas.clientHeight;
 
 
@@ -489,8 +512,8 @@ function drawSimulation() {
         ctx.beginPath();
 
         ctx.arc(
-            point.x,
-            point.y,
+            point.x + 10,
+            point.y + 10,
             1.5,
             0,
             Math.PI * 2
@@ -501,7 +524,7 @@ function drawSimulation() {
     }
 
 
-    // Launch direction
+    // Drag direction
 
     if (dragging) {
 
@@ -512,8 +535,8 @@ function drawSimulation() {
         ctx.beginPath();
 
         ctx.moveTo(
-            spacecraftX,
-            spacecraftY
+            spacecraftX + 10,
+            spacecraftY + 10
         );
 
         ctx.lineTo(
@@ -542,24 +565,11 @@ function drawSimulation() {
 
     ctx.fill();
 
-
-    // Reset cursor
-
-    if (dragging) {
-
-        canvas.style.cursor = "grabbing";
-
-    } else {
-
-        canvas.style.cursor = "default";
-
-    }
-
 }
 
 
 // --------------------------------
-// Interface
+// Update interface
 // --------------------------------
 
 function updateInterface() {
@@ -616,7 +626,7 @@ function animate() {
 
 
 // --------------------------------
-// Start
+// Start simulation
 // --------------------------------
 
 window.addEventListener(

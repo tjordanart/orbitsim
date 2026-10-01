@@ -45,7 +45,11 @@
         letter-spacing: 2px;
     }
 
-    .status {
+    .info {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
         font-size: 13px;
         color: #aaa;
     }
@@ -75,6 +79,11 @@
         color: #999;
     }
 
+    .buttons {
+        display: flex;
+        gap: 8px;
+    }
+
     button {
         min-height: 44px;
         padding: 9px 16px;
@@ -90,13 +99,29 @@
         background: #252525;
     }
 
+    button:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+
     @media (max-width: 500px) {
+
         .simulation-container {
             padding: 8px;
         }
 
+        .top-bar {
+            align-items: flex-start;
+        }
+
         .title {
             font-size: 17px;
+        }
+
+        .info {
+            width: 100%;
+            justify-content: space-between;
+            gap: 8px;
         }
 
         .instructions {
@@ -107,8 +132,12 @@
             align-items: stretch;
         }
 
-        button {
+        .buttons {
             width: 100%;
+        }
+
+        button {
+            flex: 1;
         }
     }
 </style>
@@ -119,23 +148,49 @@
 <div class="simulation-container">
 
     <div class="top-bar">
+
         <h1 class="title">ORBIT SIM</h1>
-        <div class="status" id="status">ORBITING</div>
+
+        <div class="info">
+            <div>
+                Status:
+                <span id="status">READY</span>
+            </div>
+
+            <div>
+                Velocity:
+                <span id="velocity">5.00</span>
+            </div>
+        </div>
+
     </div>
+
 
     <canvas id="simulationCanvas"></canvas>
 
+
     <div class="bottom-bar">
+
         <div class="instructions">
             Drag the spacecraft to launch it
         </div>
 
-        <button id="resetButton">
-            Reset Simulation
-        </button>
+        <div class="buttons">
+
+            <button id="startButton">
+                Start Simulation
+            </button>
+
+            <button id="resetButton">
+                Reset Simulation
+            </button>
+
+        </div>
+
     </div>
 
 </div>
+
 
 <script>
 
@@ -143,6 +198,9 @@ const canvas = document.getElementById("simulationCanvas");
 const ctx = canvas.getContext("2d");
 
 const statusText = document.getElementById("status");
+const velocityText = document.getElementById("velocity");
+
+const startButton = document.getElementById("startButton");
 const resetButton = document.getElementById("resetButton");
 
 
@@ -150,7 +208,7 @@ const resetButton = document.getElementById("resetButton");
 // SIMULATION SETTINGS
 // --------------------------------------------------
 
-const TIME_SCALE = 0.25;
+const TIME_SCALE = 0.35;
 
 const START_X = 640;
 const START_Y = 100;
@@ -163,7 +221,7 @@ const BASE_HEIGHT = 720;
 
 
 // --------------------------------------------------
-// DISPLAY SETTINGS
+// DISPLAY
 // --------------------------------------------------
 
 let displayWidth = 1280;
@@ -183,9 +241,10 @@ let velocityY;
 
 
 // --------------------------------------------------
-// SIMULATION STATE
+// STATE
 // --------------------------------------------------
 
+let simulationRunning = false;
 let crashed = false;
 let escaped = false;
 let dragging = false;
@@ -256,6 +315,23 @@ function scaleY(y) {
 
 
 // --------------------------------------------------
+// VELOCITY DISPLAY
+// --------------------------------------------------
+
+function updateVelocityDisplay() {
+
+    const speed =
+        Math.sqrt(
+            velocityX * velocityX +
+            velocityY * velocityY
+        );
+
+    velocityText.textContent =
+        speed.toFixed(2);
+}
+
+
+// --------------------------------------------------
 // RESET
 // --------------------------------------------------
 
@@ -269,13 +345,43 @@ function resetSimulation() {
     velocityX = START_VELOCITY_X;
     velocityY = START_VELOCITY_Y;
 
+    simulationRunning = false;
+
     crashed = false;
     escaped = false;
     dragging = false;
 
     trajectory = [];
 
-    statusText.textContent = "ORBITING";
+    statusText.textContent = "READY";
+
+    startButton.disabled = false;
+
+    startButton.textContent =
+        "Start Simulation";
+
+    updateVelocityDisplay();
+
+    lastTime = performance.now();
+}
+
+
+// --------------------------------------------------
+// START
+// --------------------------------------------------
+
+function startSimulation() {
+
+    if (crashed || escaped) {
+        return;
+    }
+
+    simulationRunning = true;
+
+    statusText.textContent =
+        "ORBITING";
+
+    startButton.disabled = true;
 
     lastTime = performance.now();
 }
@@ -398,19 +504,24 @@ function animate(currentTime) {
     lastTime = currentTime;
 
 
-    if (!crashed && !escaped && !dragging) {
+    if (
+        simulationRunning &&
+        !crashed &&
+        !escaped &&
+        !dragging
+    ) {
 
         const dt =
             (deltaTime / 1000) * TIME_SCALE;
 
 
-        // Planet position
+        // Planet
 
         const planetX = 640;
         const planetY = 360;
 
 
-        // Distance from spacecraft to planet
+        // Distance
 
         const dx =
             planetX - spacecraftX;
@@ -428,10 +539,11 @@ function animate(currentTime) {
         // Gravity
 
         const gravity =
-            500000 / (distance * distance);
+            500000 /
+            (distance * distance);
 
 
-        // Gravitational acceleration
+        // Acceleration
 
         const accelerationX =
             (dx / distance) * gravity;
@@ -440,7 +552,7 @@ function animate(currentTime) {
             (dy / distance) * gravity;
 
 
-        // Update velocity
+        // Velocity
 
         velocityX +=
             accelerationX * dt;
@@ -449,7 +561,7 @@ function animate(currentTime) {
             accelerationY * dt;
 
 
-        // Update position
+        // Position
 
         spacecraftX +=
             velocityX * dt * 60;
@@ -458,7 +570,7 @@ function animate(currentTime) {
             velocityY * dt * 60;
 
 
-        // Store trajectory
+        // Trajectory
 
         trajectory.push([
             spacecraftX,
@@ -467,31 +579,41 @@ function animate(currentTime) {
 
 
         if (trajectory.length > 500) {
-
             trajectory.shift();
         }
 
 
-        // Crash detection
+        // Crash
 
         if (distance < 110) {
 
             crashed = true;
 
+            simulationRunning = false;
+
             statusText.textContent =
                 "CRASHED";
+
+            startButton.disabled = false;
         }
 
 
-        // Escape detection
+        // Escape
 
         if (distance > 600) {
 
             escaped = true;
 
+            simulationRunning = false;
+
             statusText.textContent =
                 "ESCAPED";
+
+            startButton.disabled = false;
         }
+
+
+        updateVelocityDisplay();
     }
 
 
@@ -531,7 +653,11 @@ canvas.addEventListener(
     "pointerdown",
     function(event) {
 
-        if (crashed || escaped) {
+        if (
+            !simulationRunning ||
+            crashed ||
+            escaped
+        ) {
             return;
         }
 
@@ -569,6 +695,8 @@ canvas.addEventListener(
 
             statusText.textContent =
                 "AIMING";
+
+            updateVelocityDisplay();
         }
     }
 );
@@ -621,7 +749,6 @@ canvas.addEventListener(
 
 
         // Launch opposite direction
-        // from the drag
 
         velocityX =
             (launchStartX - pointer.x) * 0.08;
@@ -632,6 +759,14 @@ canvas.addEventListener(
 
         statusText.textContent =
             "ORBITING";
+
+        simulationRunning = true;
+
+        startButton.disabled = true;
+
+        lastTime = performance.now();
+
+        updateVelocityDisplay();
     }
 );
 
@@ -655,8 +790,14 @@ canvas.addEventListener(
 
 
 // --------------------------------------------------
-// RESET BUTTON
+// BUTTONS
 // --------------------------------------------------
+
+startButton.addEventListener(
+    "click",
+    startSimulation
+);
+
 
 resetButton.addEventListener(
     "click",
@@ -665,7 +806,7 @@ resetButton.addEventListener(
 
 
 // --------------------------------------------------
-// WINDOW RESIZE
+// RESIZE
 // --------------------------------------------------
 
 window.addEventListener(
@@ -675,7 +816,7 @@ window.addEventListener(
 
 
 // --------------------------------------------------
-// START
+// STARTUP
 // --------------------------------------------------
 
 resetSimulation();

@@ -69,7 +69,7 @@ The simulation tracks three primary outcomes:
 
 ## Requirements
 
-- Java 17+
+- Java
 - Eclipse IDE or another Java-compatible development environment
 
 No external libraries are required.

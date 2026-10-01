@@ -3,153 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Orbit Sim</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+    * {
+        box-sizing: border-box;
+    }
 
-body {
-    margin: 0;
-    background: #000;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
-}
+    html, body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        color: white;
+        font-family: Arial, sans-serif;
+    }
 
-#simulation {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    min-height: 500px;
-    background: #000;
-}
+    body {
+        width: 100%;
+        overflow-x: hidden;
+    }
 
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    cursor: default;
-    touch-action: none;
-}
+    .simulation-container {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 14px;
+    }
 
-.info-panel {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 2;
-    pointer-events: none;
-    line-height: 1.4;
-}
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
 
-h1 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-    letter-spacing: 2px;
-}
+    .title {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 2px;
+    }
 
-p {
-    margin: 4px 0;
-    font-size: 14px;
-}
+    .status {
+        font-size: 13px;
+        color: #aaa;
+    }
 
-#status {
-    font-weight: bold;
-}
+    canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        background: #000;
+        border: 1px solid #222;
+        border-radius: 8px;
+        touch-action: none;
+    }
 
-#resetButton {
-    margin-top: 12px;
-    padding: 10px 16px;
-    border: 1px solid #777;
-    border-radius: 4px;
-    background: #222;
-    color: #fff;
-    font-size: 14px;
-    cursor: pointer;
-    pointer-events: auto;
-}
+    .bottom-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
 
-#resetButton:hover {
-    background: #333;
-}
+    .instructions {
+        font-size: 13px;
+        color: #999;
+    }
+
+    button {
+        min-height: 44px;
+        padding: 9px 16px;
+        background: #181818;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button:hover {
+        background: #252525;
+    }
+
+    @media (max-width: 500px) {
+        .simulation-container {
+            padding: 8px;
+        }
+
+        .title {
+            font-size: 17px;
+        }
+
+        .instructions {
+            font-size: 12px;
+        }
+
+        .bottom-bar {
+            align-items: stretch;
+        }
+
+        button {
+            width: 100%;
+        }
+    }
 </style>
 </head>
 
 <body>
 
-<div id="simulation">
+<div class="simulation-container">
 
-    <canvas id="orbitCanvas"></canvas>
+    <div class="top-bar">
+        <h1 class="title">ORBIT SIM</h1>
+        <div class="status" id="status">ORBITING</div>
+    </div>
 
-    <div class="info-panel">
+    <canvas id="simulationCanvas"></canvas>
 
-        <h1>ORBIT SIM</h1>
-
-        <p id="status">Status: ORBITING</p>
-
-        <p id="velocity">Velocity: 5.00</p>
-
-        <p>Drag the spacecraft to change its trajectory</p>
-
-        <p>Release the mouse to launch</p>
+    <div class="bottom-bar">
+        <div class="instructions">
+            Drag the spacecraft to launch it
+        </div>
 
         <button id="resetButton">
             Reset Simulation
         </button>
-
     </div>
 
 </div>
 
 <script>
 
-const canvas =
-    document.getElementById("orbitCanvas");
+const canvas = document.getElementById("simulationCanvas");
+const ctx = canvas.getContext("2d");
 
-const ctx =
-    canvas.getContext("2d");
-
-const statusText =
-    document.getElementById("status");
-
-const velocityText =
-    document.getElementById("velocity");
-
-const resetButton =
-    document.getElementById("resetButton");
+const statusText = document.getElementById("status");
+const resetButton = document.getElementById("resetButton");
 
 
-// --------------------------------
-// Simulation settings
-// --------------------------------
-
-const GRAVITY_CONSTANT = 500000;
-
-const CRASH_DISTANCE = 110;
-
-const ESCAPE_DISTANCE = 600;
-
-const MAX_TRAJECTORY_POINTS = 500;
-
-const START_VELOCITY = 5.0;
-
-
-// Simulation time scale.
-//
-// 1.0 = normal simulation time
-// 0.25 = four times slower
+// --------------------------------------------------
+// SIMULATION SETTINGS
+// --------------------------------------------------
 
 const TIME_SCALE = 0.25;
 
+const START_X = 640;
+const START_Y = 100;
 
-// --------------------------------
-// Simulation variables
-// --------------------------------
+const START_VELOCITY_X = 5.0;
+const START_VELOCITY_Y = 0;
 
-let planetX;
-let planetY;
+const BASE_WIDTH = 1280;
+const BASE_HEIGHT = 720;
+
+
+// --------------------------------------------------
+// DISPLAY SETTINGS
+// --------------------------------------------------
+
+let displayWidth = 1280;
+let displayHeight = 720;
+let devicePixelRatioValue = 1;
+
+
+// --------------------------------------------------
+// SPACECRAFT
+// --------------------------------------------------
 
 let spacecraftX;
 let spacecraftY;
@@ -157,122 +181,351 @@ let spacecraftY;
 let velocityX;
 let velocityY;
 
-let trajectory = [];
 
-let dragging = false;
+// --------------------------------------------------
+// SIMULATION STATE
+// --------------------------------------------------
 
 let crashed = false;
-
 let escaped = false;
+let dragging = false;
 
 let launchStartX = 0;
 let launchStartY = 0;
 
-let mouseX = 0;
-let mouseY = 0;
 
-let lastTime = 0;
+// --------------------------------------------------
+// TRAJECTORY
+// --------------------------------------------------
+
+let trajectory = [];
 
 
-// --------------------------------
-// Canvas sizing
-// --------------------------------
+// --------------------------------------------------
+// TIME
+// --------------------------------------------------
+
+let lastTime = performance.now();
+
+
+// --------------------------------------------------
+// RESPONSIVE CANVAS
+// --------------------------------------------------
 
 function resizeCanvas() {
 
-    const width = canvas.clientWidth;
+    const rect = canvas.getBoundingClientRect();
 
-    const height = canvas.clientHeight;
+    displayWidth = Math.max(280, rect.width);
+    displayHeight = displayWidth * 9 / 16;
 
-    const pixelRatio =
-        window.devicePixelRatio || 1;
+    devicePixelRatioValue =
+        Math.min(window.devicePixelRatio || 1, 2);
 
     canvas.width =
-        width * pixelRatio;
+        Math.round(displayWidth * devicePixelRatioValue);
 
     canvas.height =
-        height * pixelRatio;
+        Math.round(displayHeight * devicePixelRatioValue);
 
     ctx.setTransform(
-        pixelRatio,
+        devicePixelRatioValue,
         0,
         0,
-        pixelRatio,
+        devicePixelRatioValue,
         0,
         0
     );
-
-    planetX = width / 2;
-
-    planetY = height / 2;
-
-    if (
-        spacecraftX === undefined ||
-        spacecraftY === undefined
-    ) {
-        resetSimulation();
-    }
 }
 
 
-// --------------------------------
-// Reset simulation
-// --------------------------------
+// --------------------------------------------------
+// DISPLAY SCALING
+// --------------------------------------------------
+
+function scaleX(x) {
+
+    return x * (displayWidth / BASE_WIDTH);
+}
+
+
+function scaleY(y) {
+
+    return y * (displayHeight / BASE_HEIGHT);
+}
+
+
+// --------------------------------------------------
+// RESET
+// --------------------------------------------------
 
 function resetSimulation() {
 
-    const width = canvas.clientWidth;
+    resizeCanvas();
 
-    const height = canvas.clientHeight;
+    spacecraftX = START_X;
+    spacecraftY = START_Y;
 
-    planetX = width / 2;
+    velocityX = START_VELOCITY_X;
+    velocityY = START_VELOCITY_Y;
 
-    planetY = height / 2;
-
-    spacecraftX = planetX - 10;
-
-    spacecraftY = planetY - 270;
-
-    velocityX = START_VELOCITY;
-
-    velocityY = 0;
+    crashed = false;
+    escaped = false;
+    dragging = false;
 
     trajectory = [];
 
-    dragging = false;
-
-    crashed = false;
-
-    escaped = false;
+    statusText.textContent = "ORBITING";
 
     lastTime = performance.now();
-
-    updateInterface();
 }
 
 
-// --------------------------------
-// Mouse position
-// --------------------------------
+// --------------------------------------------------
+// DRAW
+// --------------------------------------------------
 
-function getMousePosition(event) {
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        displayWidth,
+        displayHeight
+    );
+
+
+    // Planet
+
+    const planetX = scaleX(640);
+    const planetY = scaleY(360);
+    const planetRadius = scaleX(100);
+
+    ctx.beginPath();
+
+    ctx.arc(
+        planetX,
+        planetY,
+        planetRadius,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle = "#1769d1";
+
+    ctx.fill();
+
+
+    // Trajectory
+
+    if (trajectory.length > 1) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            scaleX(trajectory[0][0]),
+            scaleY(trajectory[0][1])
+        );
+
+        for (let i = 1; i < trajectory.length; i++) {
+
+            ctx.lineTo(
+                scaleX(trajectory[i][0]),
+                scaleY(trajectory[i][1])
+            );
+        }
+
+        ctx.strokeStyle = "#777";
+
+        ctx.lineWidth =
+            Math.max(1, scaleX(1.5));
+
+        ctx.stroke();
+    }
+
+
+    // Drag line
+
+    if (dragging) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            scaleX(launchStartX),
+            scaleY(launchStartY)
+        );
+
+        ctx.lineTo(
+            scaleX(spacecraftX),
+            scaleY(spacecraftY)
+        );
+
+        ctx.strokeStyle = "#f0c419";
+
+        ctx.lineWidth = 2;
+
+        ctx.stroke();
+    }
+
+
+    // Spacecraft
+
+    ctx.beginPath();
+
+    ctx.arc(
+        scaleX(spacecraftX),
+        scaleY(spacecraftY),
+        Math.max(5, scaleX(10)),
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle = "#fff";
+
+    ctx.fill();
+}
+
+
+// --------------------------------------------------
+// SIMULATION LOOP
+// --------------------------------------------------
+
+function animate(currentTime) {
+
+    const deltaTime =
+        Math.min(currentTime - lastTime, 50);
+
+    lastTime = currentTime;
+
+
+    if (!crashed && !escaped && !dragging) {
+
+        const dt =
+            (deltaTime / 1000) * TIME_SCALE;
+
+
+        // Planet position
+
+        const planetX = 640;
+        const planetY = 360;
+
+
+        // Distance from spacecraft to planet
+
+        const dx =
+            planetX - spacecraftX;
+
+        const dy =
+            planetY - spacecraftY;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        // Gravity
+
+        const gravity =
+            500000 / (distance * distance);
+
+
+        // Gravitational acceleration
+
+        const accelerationX =
+            (dx / distance) * gravity;
+
+        const accelerationY =
+            (dy / distance) * gravity;
+
+
+        // Update velocity
+
+        velocityX +=
+            accelerationX * dt;
+
+        velocityY +=
+            accelerationY * dt;
+
+
+        // Update position
+
+        spacecraftX +=
+            velocityX * dt * 60;
+
+        spacecraftY +=
+            velocityY * dt * 60;
+
+
+        // Store trajectory
+
+        trajectory.push([
+            spacecraftX,
+            spacecraftY
+        ]);
+
+
+        if (trajectory.length > 500) {
+
+            trajectory.shift();
+        }
+
+
+        // Crash detection
+
+        if (distance < 110) {
+
+            crashed = true;
+
+            statusText.textContent =
+                "CRASHED";
+        }
+
+
+        // Escape detection
+
+        if (distance > 600) {
+
+            escaped = true;
+
+            statusText.textContent =
+                "ESCAPED";
+        }
+    }
+
+
+    draw();
+
+    requestAnimationFrame(animate);
+}
+
+
+// --------------------------------------------------
+// POINTER POSITION
+// --------------------------------------------------
+
+function getPointerPosition(event) {
 
     const rect =
         canvas.getBoundingClientRect();
 
     return {
 
-        x: event.clientX - rect.left,
+        x:
+            (event.clientX - rect.left) *
+            (BASE_WIDTH / displayWidth),
 
-        y: event.clientY - rect.top
-
+        y:
+            (event.clientY - rect.top) *
+            (BASE_HEIGHT / displayHeight)
     };
 }
 
 
-// --------------------------------
-// Pointer down
-// --------------------------------
+// --------------------------------------------------
+// POINTER DOWN
+// --------------------------------------------------
 
 canvas.addEventListener(
     "pointerdown",
@@ -282,53 +535,48 @@ canvas.addEventListener(
             return;
         }
 
-        const mouse =
-            getMousePosition(event);
 
-        const dx =
-            mouse.x - (spacecraftX + 10);
+        const pointer =
+            getPointerPosition(event);
 
-        const dy =
-            mouse.y - (spacecraftY + 10);
 
         const distance =
-            Math.sqrt(
-                dx * dx +
-                dy * dy
+            Math.hypot(
+                pointer.x - spacecraftX,
+                pointer.y - spacecraftY
             );
 
-        if (distance < 35) {
+
+        if (distance < 30) {
 
             dragging = true;
 
             launchStartX =
-                spacecraftX + 10;
+                pointer.x;
 
             launchStartY =
-                spacecraftY + 10;
+                pointer.y;
 
-            mouseX = mouse.x;
-
-            mouseY = mouse.y;
 
             velocityX = 0;
-
             velocityY = 0;
+
 
             canvas.setPointerCapture(
                 event.pointerId
             );
 
-            updateInterface();
-        }
 
+            statusText.textContent =
+                "AIMING";
+        }
     }
 );
 
 
-// --------------------------------
-// Pointer move
-// --------------------------------
+// --------------------------------------------------
+// POINTER MOVE
+// --------------------------------------------------
 
 canvas.addEventListener(
     "pointermove",
@@ -338,20 +586,23 @@ canvas.addEventListener(
             return;
         }
 
-        const mouse =
-            getMousePosition(event);
 
-        mouseX = mouse.x;
+        const pointer =
+            getPointerPosition(event);
 
-        mouseY = mouse.y;
 
+        spacecraftX =
+            pointer.x;
+
+        spacecraftY =
+            pointer.y;
     }
 );
 
 
-// --------------------------------
-// Pointer up
-// --------------------------------
+// --------------------------------------------------
+// POINTER UP
+// --------------------------------------------------
 
 canvas.addEventListener(
     "pointerup",
@@ -361,35 +612,51 @@ canvas.addEventListener(
             return;
         }
 
-        const mouse =
-            getMousePosition(event);
 
-        mouseX = mouse.x;
+        const pointer =
+            getPointerPosition(event);
 
-        mouseY = mouse.y;
-
-        velocityX =
-            (launchStartX - mouseX) * 0.08;
-
-        velocityY =
-            (launchStartY - mouseY) * 0.08;
-
-        trajectory = [];
 
         dragging = false;
 
-        lastTime =
-            performance.now();
 
-        updateInterface();
+        // Launch opposite direction
+        // from the drag
 
+        velocityX =
+            (launchStartX - pointer.x) * 0.08;
+
+        velocityY =
+            (launchStartY - pointer.y) * 0.08;
+
+
+        statusText.textContent =
+            "ORBITING";
     }
 );
 
 
-// --------------------------------
-// Reset button
-// --------------------------------
+// --------------------------------------------------
+// POINTER CANCEL
+// --------------------------------------------------
+
+canvas.addEventListener(
+    "pointercancel",
+    function() {
+
+        if (dragging) {
+
+            dragging = false;
+
+            resetSimulation();
+        }
+    }
+);
+
+
+// --------------------------------------------------
+// RESET BUTTON
+// --------------------------------------------------
 
 resetButton.addEventListener(
     "click",
@@ -397,346 +664,23 @@ resetButton.addEventListener(
 );
 
 
-// --------------------------------
-// Physics
-// --------------------------------
-
-function updateSimulation(deltaTime) {
-
-    if (
-        crashed ||
-        escaped ||
-        dragging
-    ) {
-        return;
-    }
-
-
-    // Prevent huge jumps if the browser
-    // pauses the animation.
-
-    deltaTime =
-        Math.min(deltaTime, 50);
-
-
-    // Convert milliseconds into
-    // simulation seconds.
-
-    const dt =
-        (deltaTime / 1000) *
-        TIME_SCALE;
-
-
-    const dx =
-        planetX -
-        (spacecraftX + 10);
-
-    const dy =
-        planetY -
-        (spacecraftY + 10);
-
-
-    const distance =
-        Math.sqrt(
-            dx * dx +
-            dy * dy
-        );
-
-
-    // Crash detection
-
-    if (distance < CRASH_DISTANCE) {
-
-        crashed = true;
-
-        velocityX = 0;
-
-        velocityY = 0;
-
-        updateInterface();
-
-        return;
-    }
-
-
-    // Escape detection
-
-    if (distance > ESCAPE_DISTANCE) {
-
-        escaped = true;
-
-        updateInterface();
-
-        return;
-    }
-
-
-    // Gravity
-
-    const gravity =
-        GRAVITY_CONSTANT /
-        (distance * distance);
-
-
-    // Gravitational acceleration
-
-    const accelerationX =
-        gravity * dx / distance;
-
-    const accelerationY =
-        gravity * dy / distance;
-
-
-    // Update velocity
-
-    velocityX +=
-        accelerationX * dt;
-
-    velocityY +=
-        accelerationY * dt;
-
-
-    // Update position
-
-    spacecraftX +=
-        velocityX * dt * 60;
-
-    spacecraftY +=
-        velocityY * dt * 60;
-
-
-    // Store trajectory
-
-    trajectory.push({
-
-        x: spacecraftX,
-
-        y: spacecraftY
-
-    });
-
-
-    // Limit trajectory
-
-    if (
-        trajectory.length >
-        MAX_TRAJECTORY_POINTS
-    ) {
-
-        trajectory.shift();
-
-    }
-
-}
-
-
-// --------------------------------
-// Draw
-// --------------------------------
-
-function drawSimulation() {
-
-    const width =
-        canvas.clientWidth;
-
-    const height =
-        canvas.clientHeight;
-
-
-    // Background
-
-    ctx.fillStyle = "#000";
-
-    ctx.fillRect(
-        0,
-        0,
-        width,
-        height
-    );
-
-
-    // Planet
-
-    ctx.fillStyle = "#1565C0";
-
-    ctx.beginPath();
-
-    ctx.arc(
-        planetX,
-        planetY,
-        100,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.fill();
-
-
-    // Trajectory
-
-    ctx.fillStyle = "#777";
-
-    for (
-        const point of trajectory
-    ) {
-
-        ctx.beginPath();
-
-        ctx.arc(
-            point.x + 10,
-            point.y + 10,
-            1.5,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fill();
-
-    }
-
-
-    // Drag line
-
-    if (dragging) {
-
-        ctx.strokeStyle =
-            "#FFFF00";
-
-        ctx.lineWidth = 2;
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            spacecraftX + 10,
-            spacecraftY + 10
-        );
-
-        ctx.lineTo(
-            mouseX,
-            mouseY
-        );
-
-        ctx.stroke();
-
-    }
-
-
-    // Spacecraft
-
-    ctx.fillStyle = "#FFF";
-
-    ctx.beginPath();
-
-    ctx.arc(
-        spacecraftX + 10,
-        spacecraftY + 10,
-        10,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.fill();
-
-}
-
-
-// --------------------------------
-// Interface
-// --------------------------------
-
-function updateInterface() {
-
-    let status = "ORBITING";
-
-
-    if (dragging) {
-
-        status = "AIMING";
-
-    }
-
-
-    if (crashed) {
-
-        status = "CRASHED";
-
-    }
-
-
-    if (escaped) {
-
-        status = "ESCAPED";
-
-    }
-
-
-    statusText.textContent =
-        "Status: " + status;
-
-
-    const speed =
-        Math.sqrt(
-            velocityX * velocityX +
-            velocityY * velocityY
-        );
-
-
-    velocityText.textContent =
-        "Velocity: " +
-        speed.toFixed(2);
-
-}
-
-
-// --------------------------------
-// Animation loop
-// --------------------------------
-
-function animate(currentTime) {
-
-    if (!lastTime) {
-
-        lastTime = currentTime;
-
-    }
-
-
-    const deltaTime =
-        currentTime - lastTime;
-
-    lastTime = currentTime;
-
-
-    updateSimulation(deltaTime);
-
-    drawSimulation();
-
-    updateInterface();
-
-
-    requestAnimationFrame(
-        animate
-    );
-
-}
-
-
-// --------------------------------
-// Start
-// --------------------------------
+// --------------------------------------------------
+// WINDOW RESIZE
+// --------------------------------------------------
 
 window.addEventListener(
     "resize",
     resizeCanvas
 );
 
-resizeCanvas();
+
+// --------------------------------------------------
+// START
+// --------------------------------------------------
 
 resetSimulation();
 
-requestAnimationFrame(
-    animate
-);
+requestAnimationFrame(animate);
 
 </script>
 
